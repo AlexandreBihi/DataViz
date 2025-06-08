@@ -64,9 +64,20 @@ with tab2:
     st.markdown("## 📊 Interactive Visualization")
 
     if st.session_state.df is not None:
-        df = st.session_state.df
+        df = st.session_state.df.copy()  # Toujours repartir de la source
+
+        # Bouton pour recharger le DataFrame et forcer la relecture des types
+        with st.expander("🔁 Refresh Data"):
+            if st.button("🔄 Reload dataframe and refresh types"):
+                st.experimental_rerun()
+
+        # Affichage des types de colonnes
+        with st.expander("🧬 Column Types"):
+            st.dataframe(df.dtypes.astype(str).rename("dtype"))
+
+        # Sélection dynamique des colonnes selon leur type (ajout de "string")
         numeric_columns = df.select_dtypes(include=["number"]).columns
-        categorical_columns = df.select_dtypes(include=["object", "category"]).columns
+        categorical_columns = df.select_dtypes(include=["object", "category", "string"]).columns
 
         with st.expander("📌 Select Chart Type"):
             graph_type = st.selectbox("Chart type", [
@@ -75,7 +86,6 @@ with tab2:
             ])
 
         with st.expander("🔧 Parameters"):
-            # Variable setup based on chart type
             if graph_type in ["Histogram", "Box Plot"]:
                 selected_column = st.selectbox("Numeric column", numeric_columns)
                 color_column = st.selectbox("Color by (optional)", [None] + list(categorical_columns))
@@ -133,7 +143,7 @@ with tab2:
                     filtered_df = filtered_df[filtered_df[cat_col].isin(values)]
                 selected_cat_filters.append(cat_col)
 
-        # Generate the figure based on chart type
+        # Generate the chart
         fig = None
         if graph_type == "Histogram":
             fig = px.histogram(filtered_df, x=selected_column, color=color_column, nbins=30, title=title)
@@ -151,7 +161,6 @@ with tab2:
         elif graph_type == "Pie Chart":
             fig = px.pie(filtered_df, names=category_column, values=value_column, title=title)
 
-        # Display the figure
         if fig:
             fig.update_layout(
                 xaxis_title=x_label,
