@@ -181,64 +181,78 @@ with tab2:
         st.warning("Please upload a file in the first tab.")
 
 
-# --- Tab 3: Data Transformation ---
 with tab3:
-    st.markdown("## 🛠 Prepare & Calculate")
+    st.markdown("## 🛠 Prepare & Transform Your Data")
 
     if st.session_state.df is not None:
-        df = st.session_state.df
+        df = st.session_state.df.copy()
 
         col1, col2, col3 = st.columns(3)
 
+        # --- 🔄 Conversion de type ---
         with col1:
             st.markdown("### 🔄 Convert Column Type")
-            column_to_convert = st.selectbox("Select column", df.columns)
-            new_type = st.radio("Target type", ["int", "float", "string"])
-            if st.button("Convert"):
+            column_to_convert = st.selectbox("Select column", df.columns, key="convert_col")
+            new_type = st.radio("Convert to:", ["int", "float", "string"], key="convert_type")
+            if st.button("Convert", key="convert_button"):
                 try:
-                    df[column_to_convert] = df[column_to_convert].astype(new_type)
+                    if new_type == "int":
+                        df[column_to_convert] = df[column_to_convert].astype(int)
+                    elif new_type == "float":
+                        df[column_to_convert] = df[column_to_convert].astype(float)
+                    elif new_type == "string":
+                        df[column_to_convert] = df[column_to_convert].astype(str)
                     st.session_state.df = df
-                    st.success(f"✅ Column converted to {new_type}")
+                    st.success(f"✅ Column '{column_to_convert}' converted to {new_type}")
+                    st.rerun()
                 except Exception as e:
-                    st.error(f"Error: {e}")
+                    st.error(f"❌ Conversion error: {e}")
 
+        # --- ⚠️ Remplissage des valeurs manquantes ---
         with col2:
             st.markdown("### ⚠️ Handle Missing Values")
             missing_cols = df.columns[df.isnull().any()].tolist()
             if missing_cols:
-                col_to_fill = st.selectbox("Select column", missing_cols)
-                fill_method = st.radio("Filling method", ["Mean", "Median", "Fixed value"])
-                if fill_method in ["Mean", "Median"]:
-                    try:
-                        df[col_to_fill] = pd.to_numeric(df[col_to_fill], errors='coerce')
-                        if fill_method == "Mean":
-                            df[col_to_fill].fillna(df[col_to_fill].mean(), inplace=True)
-                        else:
-                            df[col_to_fill].fillna(df[col_to_fill].median(), inplace=True)
-                        st.session_state.df = df
-                        st.success(f"{col_to_fill} filled with {fill_method.lower()}")
-                    except Exception as e:
-                        st.error(str(e))
-                else:
-                    val = st.text_input("Fixed value")
-                    if val:
-                        df[col_to_fill].fillna(val, inplace=True)
-                        st.session_state.df = df
-                        st.success(f"{col_to_fill} filled with value: {val}")
-            else:
-                st.info("✅ No missing values detected")
+                col_to_fill = st.selectbox("Select column", missing_cols, key="na_col")
+                fill_method = st.radio("Fill with:", ["Mean", "Median", "Fixed value"], key="fill_method")
 
+                if fill_method == "Fixed value":
+                    custom_value = st.text_input("Enter fixed value:", key="fixed_val")
+                    if st.button("Fill NA", key="fill_fixed"):
+                        df[col_to_fill] = df[col_to_fill].fillna(custom_value)
+                        st.session_state.df = df
+                        st.success(f"✅ Filled NA in '{col_to_fill}' with '{custom_value}'")
+                        st.rerun()
+                else:
+                    if st.button("Fill NA", key="fill_stat"):
+                        try:
+                            df[col_to_fill] = pd.to_numeric(df[col_to_fill], errors="coerce")
+                            if fill_method == "Mean":
+                                df[col_to_fill] = df[col_to_fill].fillna(df[col_to_fill].mean())
+                            else:
+                                df[col_to_fill] = df[col_to_fill].fillna(df[col_to_fill].median())
+                            st.session_state.df = df
+                            st.success(f"✅ NA in '{col_to_fill}' filled with {fill_method.lower()}")
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"❌ Error: {e}")
+            else:
+                st.info("✅ No missing values detected.")
+
+        # --- ➕ Création de colonnes calculées ---
         with col3:
             st.markdown("### ➕ Create New Column")
-            new_col = st.text_input("New column name")
-            formula = st.text_area("Formula (e.g. col1 + col2)")
-            if st.button("Create column"):
+            new_col_name = st.text_input("New column name", key="new_col_name")
+            formula = st.text_area("Formula (e.g. col1 + col2)", key="formula_text")
+            if st.button("Create column", key="create_col_btn"):
                 try:
-                    df[new_col] = df.eval(formula)
+                    df[new_col_name] = df.eval(formula)
                     st.session_state.df = df
-                    st.success(f"✅ Column '{new_col}' created")
+                    st.success(f"✅ Column '{new_col_name}' created using: {formula}")
+                    st.rerun()
                 except Exception as e:
-                    st.error(f"Error: {e}")
+                    st.error(f"❌ Formula error: {e}")
 
     else:
-        st.warning("Please upload a file first to use this section.")
+        st.warning("Please upload a file in the first tab to use these features.")
+
