@@ -149,4 +149,77 @@ with tab2:
     else:
         st.warning("Please upload a file in the first tab.")
 
+with tab3:
+    st.markdown("## 🛠 Debug – Data Transformation")
+
+    if st.session_state.df is not None:
+        df = st.session_state.df.copy()
+
+        col1, col2, col3 = st.columns(3)
+
+        with col1:
+            st.markdown("### 🔄 Convert Column Type")
+            column_to_convert = st.selectbox("Select column", df.columns, key="convert_col")
+            new_type = st.radio("Convert to:", ["int", "float", "string"], key="convert_type")
+            if st.button("Convert", key="convert_button"):
+                try:
+                    df[column_to_convert] = df[column_to_convert].astype(new_type)
+                    st.session_state.df = df.copy(deep=True)
+                    st.session_state.df_updated = True
+                    st.success(f"✅ Converted '{column_to_convert}' to {new_type}")
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"❌ Conversion error: {e}")
+
+        with col2:
+            st.markdown("### ⚠️ Fill NA Values")
+            na_cols = df.columns[df.isnull().any()].tolist()
+            if na_cols:
+                col_to_fill = st.selectbox("Select NA column", na_cols)
+                method = st.radio("Method", ["Mean", "Median", "Fixed value"])
+                if method == "Fixed value":
+                    val = st.text_input("Value")
+                    if st.button("Fill NA with fixed"):
+                        df[col_to_fill] = df[col_to_fill].fillna(val)
+                        st.session_state.df = df.copy(deep=True)
+                        st.session_state.df_updated = True
+                        st.success(f"✅ Filled NA in '{col_to_fill}' with '{val}'")
+                        st.rerun()
+                else:
+                    if st.button("Fill NA with stat"):
+                        df[col_to_fill] = pd.to_numeric(df[col_to_fill], errors="coerce")
+                        fill_val = df[col_to_fill].mean() if method == "Mean" else df[col_to_fill].median()
+                        df[col_to_fill] = df[col_to_fill].fillna(fill_val)
+                        st.session_state.df = df.copy(deep=True)
+                        st.session_state.df_updated = True
+                        st.success(f"✅ Filled NA in '{col_to_fill}' with {method.lower()}")
+                        st.rerun()
+            else:
+                st.info("✅ No missing values found.")
+
+        with col3:
+            st.markdown("### ➕ Create Column")
+            new_col = st.text_input("New column name")
+            formula = st.text_area("Formula (e.g. col1 + col2)")
+            if st.button("Create column"):
+                try:
+                    df[new_col] = df.eval(formula)
+                    if new_col in df.columns:
+                        st.success(f"✅ Column '{new_col}' created.")
+                    else:
+                        st.error(f"❌ Column '{new_col}' not found after creation!")
+                    st.session_state.df = df.copy(deep=True)
+                    st.session_state.df_updated = True
+                    st.rerun()
+                except Exception as e:
+                    st.error(f"❌ Formula error: {e}")
+
+        with st.expander("🔍 Preview DataFrame"):
+            st.dataframe(df.head(5))
+            st.write("Columns:", df.columns.tolist())
+            st.write("Types:", df.dtypes.astype(str).to_dict())
+
+    else:
+        st.warning("Please import a CSV file first.")
+
 
