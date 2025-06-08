@@ -79,23 +79,27 @@ with tab2:
             if graph_type in ["Histogram", "Box Plot"]:
                 selected_column = st.selectbox("Numeric column", numeric_columns)
                 color_column = st.selectbox("Color by (optional)", [None] + list(categorical_columns))
-                x_label = selected_column
-                y_label = ""
+                x_label_default = selected_column
+                y_label_default = "" if graph_type == "Histogram" else selected_column
             elif graph_type == "Scatter Plot":
                 colx, coly = st.columns(2)
-                with colx:
-                    x_column = st.selectbox("X-axis", numeric_columns)
-                with coly:
-                    y_column = st.selectbox("Y-axis", numeric_columns)
-                color_column = st.selectbox("Color by (optional)", [None] + list(categorical_columns))
-                x_label, y_label = x_column, y_column
-            elif graph_type in ["Bar Chart", "Stacked Bar Chart", "Treemap", "Pie Chart"]:
-                category_column = st.selectbox("Category", categorical_columns)
-                value_column = st.selectbox("Value", numeric_columns)
-                x_label, y_label = category_column, value_column
+        with colx:
+            x_column = st.selectbox("X-axis", numeric_columns)
+        with coly:
+            y_column = st.selectbox("Y-axis", numeric_columns)
+            color_column = st.selectbox("Color by (optional)", [None] + list(categorical_columns))
+            x_label_default, y_label_default = x_column, y_column
+        elif graph_type in ["Bar Chart", "Stacked Bar Chart", "Treemap", "Pie Chart"]:
+            category_column = st.selectbox("Category", categorical_columns)
+            value_column = st.selectbox("Value", numeric_columns)
+            x_label_default, y_label_default = category_column, value_column
 
-            title = st.text_input("Chart title", "")
-            color_label = st.text_input("Legend title", "")
+    # Manual axis labeling
+    x_label = st.text_input("X-axis label", x_label_default)
+    y_label = st.text_input("Y-axis label", y_label_default)
+
+    title = st.text_input("Chart title", "")
+    color_label = st.text_input("Legend title", "")
 
         with st.expander("🎯 Filters"):
 
