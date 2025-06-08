@@ -64,26 +64,25 @@ with tab2:
     st.markdown("## 📊 Interactive Visualization")
 
     if st.session_state.df is not None:
+        if "df_updated" in st.session_state:
+            del st.session_state.df_updated
+            st.experimental_clear_cache()
+
         df = st.session_state.df.copy()
 
-        # Patch : rendre les colonnes Arrow-compatibles (ex : listes, dicts → str)
+        # 🧪 Debug : aperçu des colonnes
+        with st.expander("🧪 DEBUG – Columns and Types"):
+            st.write("✅ Columns in memory:", df.columns.tolist())
+            st.write("✅ Dtypes:", df.dtypes.astype(str).to_dict())
+
+        # 🔄 Convert object columns to string (for Arrow compatibility)
         for col in df.columns:
             if df[col].dtype == "object":
                 try:
                     df[col] = df[col].astype(str)
                 except:
-                    pass  # on ignore les cas tordus
+                    pass
 
-        # Option de rechargement complet (avec rerun)
-        with st.expander("🔁 Refresh Data"):
-            if st.button("🔄 Reload dataframe and refresh types"):
-                st.rerun()
-
-        # Affichage des types de colonnes
-        with st.expander("🧬 Column Types"):
-            st.dataframe(df.dtypes.astype(str).rename("dtype"))
-
-        # Sélection dynamique des colonnes
         numeric_columns = df.select_dtypes(include=["number"]).columns
         categorical_columns = df.select_dtypes(include=["object", "category", "string"]).columns
 
@@ -114,145 +113,40 @@ with tab2:
                 value_column = st.selectbox("Value", numeric_columns)
                 x_label_default, y_label_default = category_column, value_column
 
-            # Noms d'axes personnalisés
             x_label = st.text_input("X-axis label", x_label_default)
             y_label = st.text_input("Y-axis label", y_label_default)
-
             title = st.text_input("Chart title", "")
             color_label = st.text_input("Legend title", "")
 
-        with st.expander("🎯 Filters"):
-            filtered_df = df.copy()
+        # Ajoute un graphique simple pour tester
+        with st.expander("🎯 Try rendering (sanity check)"):
+            st.write("🔍 Filtered columns used:", df.columns.tolist())
 
-            st.markdown("##### 🔢 Numeric Filters")
-            selected_filters = []
-            while True:
-                available_columns = [col for col in numeric_columns if col not in selected_filters]
-                if not available_columns:
-                    break
-                col_filter = st.selectbox("Select column", ["None"] + available_columns, key=f"num_filter_{len(selected_filters)}")
-                if col_filter == "None":
-                    break
-                min_val, max_val = st.slider(f"{col_filter}", float(df[col_filter].min()), float(df[col_filter].max()), (float(df[col_filter].min()), float(df[col_filter].max())))
-                filtered_df = filtered_df[(filtered_df[col_filter] >= min_val) & (filtered_df[col_filter] <= max_val)]
-                selected_filters.append(col_filter)
-
-            st.markdown("##### 🏷 Categorical Filters")
-            selected_cat_filters = []
-            while True:
-                available_cat = [col for col in categorical_columns if col not in selected_cat_filters]
-                if not available_cat:
-                    break
-                cat_col = st.selectbox("Select column", ["None"] + available_cat, key=f"cat_filter_{len(selected_cat_filters)}")
-                if cat_col == "None":
-                    break
-                values = st.multiselect(f"Select values for {cat_col}", df[cat_col].unique().tolist())
-                if values:
-                    filtered_df = filtered_df[filtered_df[cat_col].isin(values)]
-                selected_cat_filters.append(cat_col)
-
-        # Génération du graphique
         fig = None
-        if graph_type == "Histogram":
-            fig = px.histogram(filtered_df, x=selected_column, color=color_column, nbins=30, title=title)
-        elif graph_type == "Box Plot":
-            fig = px.box(filtered_df, y=selected_column, color=color_column, title=title)
-        elif graph_type == "Scatter Plot":
-            fig = px.scatter(filtered_df, x=x_column, y=y_column, color=color_column, title=title)
-        elif graph_type == "Bar Chart":
-            fig = px.bar(filtered_df, x=category_column, y=value_column, title=title)
-        elif graph_type == "Stacked Bar Chart":
-            stack_column = st.selectbox("Stack by", categorical_columns)
-            fig = px.bar(filtered_df, x=category_column, y=value_column, color=stack_column, title=title)
-        elif graph_type == "Treemap":
-            fig = px.treemap(filtered_df, path=[category_column], values=value_column, title=title)
-        elif graph_type == "Pie Chart":
-            fig = px.pie(filtered_df, names=category_column, values=value_column, title=title)
+        try:
+            if graph_type == "Pie Chart":
+                fig = px.pie(df, names=category_column, values=value_column, title=title)
+            elif graph_type == "Histogram":
+                fig = px.histogram(df, x=selected_column, color=color_column, title=title)
+            elif graph_type == "Box Plot":
+                fig = px.box(df, y=selected_column, color=color_column, title=title)
+            elif graph_type == "Scatter Plot":
+                fig = px.scatter(df, x=x_column, y=y_column, color=color_column, title=title)
+            elif graph_type == "Bar Chart":
+                fig = px.bar(df, x=category_column, y=value_column, title=title)
+            elif graph_type == "Stacked Bar Chart":
+                stack_column = st.selectbox("Stack by", categorical_columns)
+                fig = px.bar(df, x=category_column, y=value_column, color=stack_column, title=title)
+            elif graph_type == "Treemap":
+                fig = px.treemap(df, path=[category_column], values=value_column, title=title)
+        except Exception as e:
+            st.error(f"❌ Chart rendering error: {e}")
 
         if fig:
-            fig.update_layout(
-                xaxis_title=x_label,
-                yaxis_title=y_label,
-                legend_title=color_label
-            )
+            fig.update_layout(xaxis_title=x_label, yaxis_title=y_label, legend_title=color_label)
             st.plotly_chart(fig, use_container_width=True)
 
     else:
         st.warning("Please upload a file in the first tab.")
 
-
-with tab3:
-    st.markdown("## 🛠 Prepare & Transform Your Data")
-
-    if st.session_state.df is not None:
-        df = st.session_state.df.copy()
-
-        col1, col2, col3 = st.columns(3)
-
-        # --- 🔄 Conversion de type ---
-        with col1:
-            st.markdown("### 🔄 Convert Column Type")
-            column_to_convert = st.selectbox("Select column", df.columns, key="convert_col")
-            new_type = st.radio("Convert to:", ["int", "float", "string"], key="convert_type")
-            if st.button("Convert", key="convert_button"):
-                try:
-                    if new_type == "int":
-                        df[column_to_convert] = df[column_to_convert].astype(int)
-                    elif new_type == "float":
-                        df[column_to_convert] = df[column_to_convert].astype(float)
-                    elif new_type == "string":
-                        df[column_to_convert] = df[column_to_convert].astype(str)
-                    st.session_state.df = df
-                    st.success(f"✅ Column '{column_to_convert}' converted to {new_type}")
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"❌ Conversion error: {e}")
-
-        # --- ⚠️ Remplissage des valeurs manquantes ---
-        with col2:
-            st.markdown("### ⚠️ Handle Missing Values")
-            missing_cols = df.columns[df.isnull().any()].tolist()
-            if missing_cols:
-                col_to_fill = st.selectbox("Select column", missing_cols, key="na_col")
-                fill_method = st.radio("Fill with:", ["Mean", "Median", "Fixed value"], key="fill_method")
-
-                if fill_method == "Fixed value":
-                    custom_value = st.text_input("Enter fixed value:", key="fixed_val")
-                    if st.button("Fill NA", key="fill_fixed"):
-                        df[col_to_fill] = df[col_to_fill].fillna(custom_value)
-                        st.session_state.df = df
-                        st.success(f"✅ Filled NA in '{col_to_fill}' with '{custom_value}'")
-                        st.rerun()
-                else:
-                    if st.button("Fill NA", key="fill_stat"):
-                        try:
-                            df[col_to_fill] = pd.to_numeric(df[col_to_fill], errors="coerce")
-                            if fill_method == "Mean":
-                                df[col_to_fill] = df[col_to_fill].fillna(df[col_to_fill].mean())
-                            else:
-                                df[col_to_fill] = df[col_to_fill].fillna(df[col_to_fill].median())
-                            st.session_state.df = df
-                            st.success(f"✅ NA in '{col_to_fill}' filled with {fill_method.lower()}")
-                            st.rerun()
-                        except Exception as e:
-                            st.error(f"❌ Error: {e}")
-            else:
-                st.info("✅ No missing values detected.")
-
-        # --- ➕ Création de colonnes calculées ---
-        with col3:
-            st.markdown("### ➕ Create New Column")
-            new_col_name = st.text_input("New column name", key="new_col_name")
-            formula = st.text_area("Formula (e.g. col1 + col2)", key="formula_text")
-            if st.button("Create column", key="create_col_btn"):
-                try:
-                    df[new_col_name] = df.eval(formula)
-                    st.session_state.df = df
-                    st.success(f"✅ Column '{new_col_name}' created using: {formula}")
-                    st.rerun()
-                except Exception as e:
-                    st.error(f"❌ Formula error: {e}")
-
-    else:
-        st.warning("Please upload a file in the first tab to use these features.")
 
