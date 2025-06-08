@@ -2,80 +2,53 @@ import streamlit as st
 import pandas as pd
 import plotly.express as px
 
-st.set_page_config(page_title="Data Analysis", page_icon="📊", layout="wide")
+st.set_page_config(page_title="Data Explorer", page_icon="📊", layout="wide")
 
-# --- Main header ---
 st.markdown("""
     <div style="text-align: center; padding: 10px 0;">
-        <h1 style="color: #4CAF50;">🧮 Data Explorer</h1>
+        <h1 style="color: #4CAF50;">💎 Data Explorer</h1>
         <p style="font-size: 18px;">Import, explore, and transform your CSV files without writing code.</p>
     </div>
 """, unsafe_allow_html=True)
 
-# Tabs
-tab1, tab2, tab3 = st.tabs(["📂 Data Import", "📊 Visualization", "🛠 Data Transformation"])
+tab1, tab2, tab3 = st.tabs(["\ud83d\udcc2 Data Import", "\ud83d\udcca Visualization", "\ud83d\udee0 Data Transformation"])
 
 if "df" not in st.session_state:
     st.session_state.df = None
 
-# --- Tab 1: Import ---
+# ---------------------------- TAB 1 ----------------------------
 with tab1:
-    st.markdown("## 📂 Load & Export")
+    st.markdown("## \ud83d\udcc2 Upload & Export")
 
     col1, col2 = st.columns([2, 1])
     with col1:
-        st.markdown("### 📥 Upload CSV")
+        st.markdown("### \ud83d\udcc5 Upload CSV")
         uploaded_file = st.file_uploader("Upload your CSV file", type=["csv"])
         separator = st.radio("Choose a separator:", [",", ";", "\t"])
-
-    with col2:
-        st.markdown("### ℹ️ Info")
-        st.markdown("- Data stored locally in session")
-        st.markdown("- Recommended max file size: 50 MB")
 
     if uploaded_file is not None:
         try:
             df = pd.read_csv(uploaded_file, sep=separator)
-            st.session_state.df = df
-            st.success("✅ File uploaded successfully!")
-
-            st.markdown("### 👀 Preview")
+            st.session_state.df = df.copy(deep=True)
+            st.success("\u2705 File uploaded successfully!")
             st.dataframe(df.head(10), use_container_width=True)
-
-            st.markdown("### 📌 Summary")
-            st.write(f"- Rows: {df.shape[0]}")
-            st.write(f"- Columns: {df.shape[1]}")
-            st.write("Column types:", df.dtypes.head(5))
-
-            st.markdown("### 💾 Export")
-            export_format = st.radio("Choose export format:", ["CSV", "Excel"], index=0)
-            if export_format == "CSV":
-                csv_data = df.to_csv(index=False).encode('utf-8')
-                st.download_button("📥 Download CSV", data=csv_data, file_name="export.csv", mime="text/csv")
-            else:
-                df.to_excel("export.xlsx", index=False)
-                with open("export.xlsx", "rb") as f:
-                    st.download_button("📥 Download Excel", data=f, file_name="export.xlsx", mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
-
         except Exception as e:
             st.error(f"Error reading file: {e}")
 
+# ---------------------------- TAB 2 ----------------------------
 with tab2:
-    st.markdown("## 📊 Interactive Visualization")
+    st.markdown("## \ud83d\udcca Interactive Visualization")
 
     if st.session_state.df is not None:
         if "df_updated" in st.session_state:
             del st.session_state.df_updated
-            st.experimental_clear_cache()
 
         df = st.session_state.df.copy()
 
-        # 🧪 Debug : aperçu des colonnes
-        with st.expander("🧪 DEBUG – Columns and Types"):
-            st.write("✅ Columns in memory:", df.columns.tolist())
-            st.write("✅ Dtypes:", df.dtypes.astype(str).to_dict())
+        with st.expander("\ud83e\uddea DEBUG – Columns and Types"):
+            st.write("Columns:", df.columns.tolist())
+            st.write("Types:", df.dtypes.astype(str).to_dict())
 
-        # 🔄 Convert object columns to string (for Arrow compatibility)
         for col in df.columns:
             if df[col].dtype == "object":
                 try:
@@ -86,19 +59,18 @@ with tab2:
         numeric_columns = df.select_dtypes(include=["number"]).columns
         categorical_columns = df.select_dtypes(include=["object", "category", "string"]).columns
 
-        with st.expander("📌 Select Chart Type"):
+        with st.expander("\ud83d\udcc9 Select Chart Type"):
             graph_type = st.selectbox("Chart type", [
                 "Histogram", "Box Plot", "Scatter Plot", "Bar Chart",
                 "Stacked Bar Chart", "Bubble Chart", "Treemap", "Pie Chart"
             ])
 
-        with st.expander("🔧 Parameters"):
+        with st.expander("\ud83d\udd27 Parameters"):
             if graph_type in ["Histogram", "Box Plot"]:
                 selected_column = st.selectbox("Numeric column", numeric_columns)
                 color_column = st.selectbox("Color by (optional)", [None] + list(categorical_columns))
                 x_label_default = selected_column
                 y_label_default = "" if graph_type == "Histogram" else selected_column
-
             elif graph_type == "Scatter Plot":
                 colx, coly = st.columns(2)
                 with colx:
@@ -107,7 +79,6 @@ with tab2:
                     y_column = st.selectbox("Y-axis", numeric_columns)
                 color_column = st.selectbox("Color by (optional)", [None] + list(categorical_columns))
                 x_label_default, y_label_default = x_column, y_column
-
             elif graph_type in ["Bar Chart", "Stacked Bar Chart", "Treemap", "Pie Chart"]:
                 category_column = st.selectbox("Category", categorical_columns)
                 value_column = st.selectbox("Value", numeric_columns)
@@ -117,10 +88,6 @@ with tab2:
             y_label = st.text_input("Y-axis label", y_label_default)
             title = st.text_input("Chart title", "")
             color_label = st.text_input("Legend title", "")
-
-        # Ajoute un graphique simple pour tester
-        with st.expander("🎯 Try rendering (sanity check)"):
-            st.write("🔍 Filtered columns used:", df.columns.tolist())
 
         fig = None
         try:
@@ -140,17 +107,17 @@ with tab2:
             elif graph_type == "Treemap":
                 fig = px.treemap(df, path=[category_column], values=value_column, title=title)
         except Exception as e:
-            st.error(f"❌ Chart rendering error: {e}")
+            st.error(f"Chart rendering error: {e}")
 
         if fig:
             fig.update_layout(xaxis_title=x_label, yaxis_title=y_label, legend_title=color_label)
             st.plotly_chart(fig, use_container_width=True)
-
     else:
         st.warning("Please upload a file in the first tab.")
 
+# ---------------------------- TAB 3 ----------------------------
 with tab3:
-    st.markdown("## 🛠 Debug – Data Transformation")
+    st.markdown("## \ud83d\udee0 Debug – Data Transformation")
 
     if st.session_state.df is not None:
         df = st.session_state.df.copy()
@@ -158,7 +125,7 @@ with tab3:
         col1, col2, col3 = st.columns(3)
 
         with col1:
-            st.markdown("### 🔄 Convert Column Type")
+            st.markdown("### \ud83d\udd04 Convert Column Type")
             column_to_convert = st.selectbox("Select column", df.columns, key="convert_col")
             new_type = st.radio("Convert to:", ["int", "float", "string"], key="convert_type")
             if st.button("Convert", key="convert_button"):
@@ -166,13 +133,13 @@ with tab3:
                     df[column_to_convert] = df[column_to_convert].astype(new_type)
                     st.session_state.df = df.copy(deep=True)
                     st.session_state.df_updated = True
-                    st.success(f"✅ Converted '{column_to_convert}' to {new_type}")
+                    st.success(f"Column '{column_to_convert}' converted to {new_type}")
                     st.rerun()
                 except Exception as e:
-                    st.error(f"❌ Conversion error: {e}")
+                    st.error(f"Conversion error: {e}")
 
         with col2:
-            st.markdown("### ⚠️ Fill NA Values")
+            st.markdown("### \u26a0\ufe0f Fill NA Values")
             na_cols = df.columns[df.isnull().any()].tolist()
             if na_cols:
                 col_to_fill = st.selectbox("Select NA column", na_cols)
@@ -183,7 +150,7 @@ with tab3:
                         df[col_to_fill] = df[col_to_fill].fillna(val)
                         st.session_state.df = df.copy(deep=True)
                         st.session_state.df_updated = True
-                        st.success(f"✅ Filled NA in '{col_to_fill}' with '{val}'")
+                        st.success(f"Filled NA in '{col_to_fill}' with '{val}'")
                         st.rerun()
                 else:
                     if st.button("Fill NA with stat"):
@@ -192,34 +159,32 @@ with tab3:
                         df[col_to_fill] = df[col_to_fill].fillna(fill_val)
                         st.session_state.df = df.copy(deep=True)
                         st.session_state.df_updated = True
-                        st.success(f"✅ Filled NA in '{col_to_fill}' with {method.lower()}")
+                        st.success(f"Filled NA in '{col_to_fill}' with {method.lower()}")
                         st.rerun()
             else:
-                st.info("✅ No missing values found.")
+                st.info("No missing values found.")
 
         with col3:
-            st.markdown("### ➕ Create Column")
+            st.markdown("### \u2795 Create Column")
             new_col = st.text_input("New column name")
             formula = st.text_area("Formula (e.g. col1 + col2)")
             if st.button("Create column"):
                 try:
                     df[new_col] = df.eval(formula)
-                    if new_col in df.columns:
-                        st.success(f"✅ Column '{new_col}' created.")
-                    else:
-                        st.error(f"❌ Column '{new_col}' not found after creation!")
                     st.session_state.df = df.copy(deep=True)
                     st.session_state.df_updated = True
+                    if new_col in df.columns:
+                        st.success(f"Column '{new_col}' created successfully.")
+                    else:
+                        st.error(f"Column '{new_col}' not found after creation!")
                     st.rerun()
                 except Exception as e:
-                    st.error(f"❌ Formula error: {e}")
+                    st.error(f"Formula error: {e}")
 
-        with st.expander("🔍 Preview DataFrame"):
+        with st.expander("\ud83d\udd0d Preview DataFrame"):
             st.dataframe(df.head(5))
             st.write("Columns:", df.columns.tolist())
             st.write("Types:", df.dtypes.astype(str).to_dict())
 
     else:
-        st.warning("Please import a CSV file first.")
-
-
+        st.warning("Please upload a file in the first tab.")
