@@ -64,18 +64,26 @@ with tab2:
     st.markdown("## 📊 Interactive Visualization")
 
     if st.session_state.df is not None:
-        df = st.session_state.df.copy()  # Toujours repartir de la source
+        df = st.session_state.df.copy()
 
-        # Bouton pour recharger le DataFrame et forcer la relecture des types
+        # Patch : rendre les colonnes Arrow-compatibles (ex : listes, dicts → str)
+        for col in df.columns:
+            if df[col].dtype == "object":
+                try:
+                    df[col] = df[col].astype(str)
+                except:
+                    pass  # on ignore les cas tordus
+
+        # Option de rechargement complet (avec rerun)
         with st.expander("🔁 Refresh Data"):
             if st.button("🔄 Reload dataframe and refresh types"):
-                st.experimental_rerun()
+                st.rerun()
 
         # Affichage des types de colonnes
         with st.expander("🧬 Column Types"):
             st.dataframe(df.dtypes.astype(str).rename("dtype"))
 
-        # Sélection dynamique des colonnes selon leur type (ajout de "string")
+        # Sélection dynamique des colonnes
         numeric_columns = df.select_dtypes(include=["number"]).columns
         categorical_columns = df.select_dtypes(include=["object", "category", "string"]).columns
 
@@ -106,7 +114,7 @@ with tab2:
                 value_column = st.selectbox("Value", numeric_columns)
                 x_label_default, y_label_default = category_column, value_column
 
-            # Manual axis label inputs
+            # Noms d'axes personnalisés
             x_label = st.text_input("X-axis label", x_label_default)
             y_label = st.text_input("Y-axis label", y_label_default)
 
@@ -143,7 +151,7 @@ with tab2:
                     filtered_df = filtered_df[filtered_df[cat_col].isin(values)]
                 selected_cat_filters.append(cat_col)
 
-        # Generate the chart
+        # Génération du graphique
         fig = None
         if graph_type == "Histogram":
             fig = px.histogram(filtered_df, x=selected_column, color=color_column, nbins=30, title=title)
