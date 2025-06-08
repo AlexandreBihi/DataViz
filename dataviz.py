@@ -60,7 +60,6 @@ with tab1:
         except Exception as e:
             st.error(f"Error reading file: {e}")
 
-# --- Tab 2: Visualization ---
 with tab2:
     st.markdown("## 📊 Interactive Visualization")
 
@@ -76,33 +75,35 @@ with tab2:
             ])
 
         with st.expander("🔧 Parameters"):
+            # Variable setup based on chart type
             if graph_type in ["Histogram", "Box Plot"]:
                 selected_column = st.selectbox("Numeric column", numeric_columns)
                 color_column = st.selectbox("Color by (optional)", [None] + list(categorical_columns))
                 x_label_default = selected_column
                 y_label_default = "" if graph_type == "Histogram" else selected_column
+
             elif graph_type == "Scatter Plot":
                 colx, coly = st.columns(2)
-        with colx:
-            x_column = st.selectbox("X-axis", numeric_columns)
-        with coly:
-            y_column = st.selectbox("Y-axis", numeric_columns)
-            color_column = st.selectbox("Color by (optional)", [None] + list(categorical_columns))
-            x_label_default, y_label_default = x_column, y_column
-        elif graph_type in ["Bar Chart", "Stacked Bar Chart", "Treemap", "Pie Chart"]:
-            category_column = st.selectbox("Category", categorical_columns)
-            value_column = st.selectbox("Value", numeric_columns)
-            x_label_default, y_label_default = category_column, value_column
+                with colx:
+                    x_column = st.selectbox("X-axis", numeric_columns)
+                with coly:
+                    y_column = st.selectbox("Y-axis", numeric_columns)
+                color_column = st.selectbox("Color by (optional)", [None] + list(categorical_columns))
+                x_label_default, y_label_default = x_column, y_column
 
-    # Manual axis labeling
-    x_label = st.text_input("X-axis label", x_label_default)
-    y_label = st.text_input("Y-axis label", y_label_default)
+            elif graph_type in ["Bar Chart", "Stacked Bar Chart", "Treemap", "Pie Chart"]:
+                category_column = st.selectbox("Category", categorical_columns)
+                value_column = st.selectbox("Value", numeric_columns)
+                x_label_default, y_label_default = category_column, value_column
 
-    title = st.text_input("Chart title", "")
-    color_label = st.text_input("Legend title", "")
+            # Manual axis label inputs
+            x_label = st.text_input("X-axis label", x_label_default)
+            y_label = st.text_input("Y-axis label", y_label_default)
+
+            title = st.text_input("Chart title", "")
+            color_label = st.text_input("Legend title", "")
 
         with st.expander("🎯 Filters"):
-
             filtered_df = df.copy()
 
             st.markdown("##### 🔢 Numeric Filters")
@@ -132,7 +133,8 @@ with tab2:
                     filtered_df = filtered_df[filtered_df[cat_col].isin(values)]
                 selected_cat_filters.append(cat_col)
 
-        # Render chart
+        # Generate the figure based on chart type
+        fig = None
         if graph_type == "Histogram":
             fig = px.histogram(filtered_df, x=selected_column, color=color_column, nbins=30, title=title)
         elif graph_type == "Box Plot":
@@ -148,15 +150,19 @@ with tab2:
             fig = px.treemap(filtered_df, path=[category_column], values=value_column, title=title)
         elif graph_type == "Pie Chart":
             fig = px.pie(filtered_df, names=category_column, values=value_column, title=title)
-        else:
-            fig = None
 
+        # Display the figure
         if fig:
-            fig.update_layout(xaxis_title=x_label, yaxis_title=y_label, legend_title=color_label)
+            fig.update_layout(
+                xaxis_title=x_label,
+                yaxis_title=y_label,
+                legend_title=color_label
+            )
             st.plotly_chart(fig, use_container_width=True)
 
     else:
         st.warning("Please upload a file in the first tab.")
+
 
 # --- Tab 3: Data Transformation ---
 with tab3:
